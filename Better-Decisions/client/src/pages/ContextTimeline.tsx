@@ -205,12 +205,12 @@ export default function ContextTimeline() {
                               )}
                             </div>
                             
-                            <Card 
+                            <Card
                               onClick={() => setSelectedNode(node)}
                               className={`
-                              relative p-3 backdrop-blur-md transition-all duration-300 group hover:scale-[1.01] cursor-pointer w-full
-                              ${isDecision 
-                                ? 'bg-primary/10 border-primary/50 shadow-[0_0_15px_rgba(37,99,235,0.1)]' 
+                              relative p-4 backdrop-blur-md transition-all duration-300 group hover:scale-[1.01] cursor-pointer w-full
+                              ${isDecision
+                                ? 'bg-primary/10 border-primary/50 shadow-[0_0_15px_rgba(37,99,235,0.1)]'
                                 : 'bg-card/40 border-white/5 hover:bg-card/60 hover:border-white/10'
                               }
                             `}
@@ -218,20 +218,29 @@ export default function ContextTimeline() {
                             >
                               <div className={`
                                 absolute top-1/2 -translate-y-1/2 w-4 h-[1px] bg-border
-                                ${isEven 
-                                  ? '-right-4 group-hover:bg-gradient-to-l' 
+                                ${isEven
+                                  ? '-right-4 group-hover:bg-gradient-to-l'
                                   : '-left-4 group-hover:bg-gradient-to-r'
                                 }
                                 from-primary/50 to-transparent transition-all hidden md:block
                               `} />
 
-                              <div className={`flex flex-col gap-1 ${isEven ? 'md:items-end' : 'md:items-start'}`}>
-                                <h3 className={`text-sm font-bold ${isDecision ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground transition-colors'}`}>
+                              <div className={`flex flex-col gap-2 ${isEven ? 'md:items-end' : 'md:items-start'}`}>
+                                <h3 className={`text-base font-bold ${isDecision ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground transition-colors'}`}>
                                   {node.label}
                                 </h3>
-                                <p className="text-xs text-muted-foreground leading-snug max-w-xl truncate">
+                                <p className={`text-sm leading-relaxed max-w-2xl ${isEven ? 'md:text-right' : 'md:text-left'} ${isDecision ? 'text-foreground/90' : 'text-muted-foreground/90'}`}>
                                   {node.description}
                                 </p>
+                                {node.type === 'code' && (
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {node.tags?.slice(0, 5).map((tag, i) => (
+                                      <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                                        {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </Card>
                          </div>
