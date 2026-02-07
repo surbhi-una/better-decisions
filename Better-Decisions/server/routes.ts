@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertEventSchema, insertActivitySchema } from "@shared/schema";
+import { insertProjectSchema, insertEventSchema, insertActivitySchema, events, account } from "@shared/schema";
+import { fetchAndTransformPRs, getAuthenticatedUserRepos } from "./github";
+import { auth } from "./auth";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -108,6 +112,120 @@ export async function registerRoutes(
       totalMeetings,
       totalEvents: allEvents.length,
     });
+  });
+
+  // --- GitHub Integration ---
+
+  // Middleware to check GitHub authentication
+  async function requireGitHubAuth(req: any, res: any, next: any) {
+    try {
+      const session = await auth.api.getSession({ headers: req.headers });
+      if (!session?.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      // Get the GitHub account linked to this user
+      const accounts = await db
+        .select()
+        .from(account)
+        .where(
+          and(
+            eq(account.userId, session.user.id),
+            eq(account.providerId, 'github')
+          )
+        );
+
+      if (!accounts || accounts.length === 0) {
+        return res.status(401).json({ error: 'GitHub not connected' });
+      }
+
+      req.githubToken = accounts[0].accessToken;
+      req.userId = session.user.id;
+      next();
+    } catch (error) {
+      res.status(401).json({ error: 'Authentication failed' });
+    }
+  }
+
+  // GET /api/github/repos - Get user's GitHub repositories
+  app.get("/api/github/repos", requireGitHubAuth, async (req: any, res) => {
+    try {
+      const repos = await getAuthenticatedUserRepos(req.githubToken);
+      res.json({ repositories: repos });
+    } catch (error: any) {
+      console.error('Error fetching GitHub repos:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch repositories' });
+    }
+  });
+
+  // POST /api/github/sync - Sync PRs from GitHub to project
+  app.post("/api/github/sync", requireGitHubAuth, async (req: any, res) => {
+    try {
+      const { projectId, repositories } = req.body;
+
+      if (!projectId || !repositories || !Array.isArray(repositories)) {
+        return res.status(400).json({
+          error: 'projectId and repositories array are required'
+        });
+      }
+
+      // Verify project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      let totalSynced = 0;
+
+      for (const repoFullName of repositories) {
+        const [owner, repo] = repoFullName.split('/');
+
+        if (!owner || !repo) {
+          console.warn(`Invalid repository name: ${repoFullName}`);
+          continue;
+        }
+
+        try {
+          const prs = await fetchAndTransformPRs(
+            req.githubToken,
+            owner,
+            repo,
+            projectId
+          );
+
+          // Insert PRs into database (skip duplicates)
+          for (const pr of prs) {
+            const prId = `gh-${owner}-${repo}-${pr.tags?.find(t => t.startsWith('pr-'))?.replace('pr-', '')}`;
+
+            // Check if PR already exists
+            const existing = await db
+              .select()
+              .from(events)
+              .where(eq(events.id, prId))
+              .limit(1);
+
+            if (existing.length === 0) {
+              await db.insert(events).values({
+                ...pr,
+                id: prId,
+              });
+              totalSynced++;
+            }
+          }
+        } catch (repoError: any) {
+          console.error(`Error syncing ${repoFullName}:`, repoError);
+          // Continue with other repos even if one fails
+        }
+      }
+
+      res.json({
+        synced: totalSynced,
+        message: `Successfully synced ${totalSynced} PRs`,
+      });
+    } catch (error: any) {
+      console.error('Error syncing GitHub PRs:', error);
+      res.status(500).json({ error: error.message || 'Failed to sync PRs' });
+    }
   });
 
   return httpServer;

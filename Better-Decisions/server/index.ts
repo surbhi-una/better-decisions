@@ -1,10 +1,15 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { auth } from "./auth";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Add better-auth middleware
+app.all("/api/auth/*", (req, res) => auth.handler(req, res));
 
 declare module "http" {
   interface IncomingMessage {
@@ -85,14 +90,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  httpServer.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
 })();

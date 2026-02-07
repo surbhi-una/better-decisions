@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { AppNodeData } from "@/lib/mockData";
 import { DetailPanel } from "@/components/DetailPanel";
 import { AgentModal } from "@/components/AgentModal";
+import { GitHubSync } from "@/components/GitHubSync";
 import { useQuery } from "@tanstack/react-query";
 import type { Project, Event } from "@shared/schema";
 import { 
@@ -149,6 +150,7 @@ export default function ContextTimeline() {
             <Share2 className="w-4 h-4 mr-2" />
             Share
           </Button>
+          {projectId && <GitHubSync projectId={projectId} />}
           <Button size="sm" onClick={() => setIsAgentOpen(true)} data-testid="button-log-event">
             <Plus className="w-4 h-4 mr-2" />
             Log Event
