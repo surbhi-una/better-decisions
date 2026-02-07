@@ -1,5 +1,6 @@
 import { Octokit } from '@octokit/rest';
 import type { InsertEvent } from '@shared/schema';
+import { enhancePRWithAI } from './ai-enhancer';
 
 export interface GitHubPR {
   number: number;
@@ -43,23 +44,45 @@ export async function fetchAndTransformPRs(
   // Filter only merged PRs
   const mergedPRs = data.filter(pr => pr.merged_at);
 
-  return mergedPRs.map(pr => {
+  // Process PRs with AI enhancement
+  const enhancedPRs = await Promise.all(
+    mergedPRs.map(async (pr) => {
     const mergedDate = new Date(pr.merged_at!);
+    const labelNames = pr.labels?.map(l => l.name) || [];
 
-    // Determine impact based on labels
-    let impact: 'high' | 'medium' | 'low' = 'medium';
-    const labelNames = pr.labels?.map(l => l.name.toLowerCase()) || [];
+    // Fetch detailed PR info for AI enhancement
+    let aiEnhancement;
+    try {
+      const prDetails = await octokit.pulls.get({
+        owner,
+        repo,
+        pull_number: pr.number,
+      });
 
-    if (labelNames.some(l => l.includes('critical') || l.includes('breaking') || l.includes('major'))) {
-      impact = 'high';
-    } else if (labelNames.some(l => l.includes('minor') || l.includes('patch') || l.includes('docs'))) {
-      impact = 'low';
+      aiEnhancement = await enhancePRWithAI({
+        title: pr.title,
+        body: pr.body,
+        filesChanged: prDetails.data.changed_files,
+        additions: prDetails.data.additions,
+        deletions: prDetails.data.deletions,
+        labels: labelNames,
+      });
+    } catch (error) {
+      console.error(`Failed to enhance PR #${pr.number}:`, error);
+      // Fallback to basic data if AI enhancement fails
+      aiEnhancement = {
+        description: pr.title,
+        summary: pr.body || 'No description provided',
+        impact: 'medium' as const,
+        isDecision: labelNames.some(l =>
+          l.toLowerCase().includes('decision') ||
+          l.toLowerCase().includes('architecture') ||
+          l.toLowerCase().includes('breaking')
+        ),
+        actionItems: [],
+        keyTakeaways: [],
+      };
     }
-
-    // Check if this is marked as a decision
-    const isDecision = labelNames.some(l =>
-      l.includes('decision') || l.includes('architecture') || l.includes('breaking')
-    );
 
     // Build participants list (author + reviewers)
     const participants = [pr.user?.login || 'unknown'];
@@ -85,22 +108,28 @@ export async function fetchAndTransformPRs(
     return {
       projectId,
       type: 'code' as const,
-      isDecision,
+      isDecision: aiEnhancement.isDecision,
       label: pr.title,
-      description: pr.body?.substring(0, 150) || 'No description provided',
+      description: aiEnhancement.description,
       timestamp,
       status: 'active' as const,
-      impact,
-      summary: pr.body || '',
+      impact: aiEnhancement.impact,
+      summary: aiEnhancement.summary,
       participants,
       codeSnippet: `${pr.html_url}/files`,
-      actionItems: [],
-      openQuestions: [],
+      actionItems: aiEnhancement.actionItems.map(item => ({
+        text: item,
+        completed: false,
+      })),
+      openQuestions: aiEnhancement.keyTakeaways,
       relatedLinks,
-      tags: ['github', `pr-${pr.number}`, ...(pr.labels?.map(l => l.name) || [])],
+      tags: ['github', `pr-${pr.number}`, ...labelNames],
       sortOrder: 0,
     };
-  });
+    })
+  );
+
+  return enhancedPRs;
 }
 
 /**
