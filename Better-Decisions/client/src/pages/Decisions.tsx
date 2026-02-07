@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { DecisionListResponse, DecisionDetail } from "@/lib/types";
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/sheet";
 import {
   Plus,
-  Search,
   Filter,
   X,
   ChevronLeft,
@@ -142,19 +141,26 @@ function useDebounce(value: string, delay: number) {
 }
 
 export default function Decisions() {
-  const [searchInput, setSearchInput] = useState("");
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const searchFromUrl = urlParams.get("search") ?? "";
+
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
   const [page, setPage] = useState(1);
   const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
 
-  const debouncedSearch = useDebounce(searchInput, 300);
   const debouncedProject = useDebounce(projectFilter, 300);
   const debouncedTeam = useDebounce(teamFilter, 300);
 
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchFromUrl]);
+
   const queryParams = new URLSearchParams();
-  if (debouncedSearch.trim()) queryParams.set("search", debouncedSearch.trim());
+  if (searchFromUrl.trim()) queryParams.set("search", searchFromUrl.trim());
   if (statusFilter !== "all") queryParams.set("status", statusFilter);
   if (debouncedProject.trim()) queryParams.set("project", debouncedProject.trim());
   if (debouncedTeam.trim()) queryParams.set("team", debouncedTeam.trim());
@@ -162,7 +168,7 @@ export default function Decisions() {
   queryParams.set("per_page", "10");
 
   const { data: listResult, isLoading } = useQuery<DecisionListResponse>({
-    queryKey: ["/api/decisions", debouncedSearch, statusFilter, debouncedProject, debouncedTeam, page],
+    queryKey: ["/api/decisions", searchFromUrl, statusFilter, debouncedProject, debouncedTeam, page],
     queryFn: async () => {
       const res = await fetch(`/api/decisions?${queryParams.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch decisions");
@@ -193,10 +199,9 @@ export default function Decisions() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const hasFilters =
-    searchInput.trim() !== "" || statusFilter !== "all" || projectFilter.trim() !== "" || teamFilter.trim() !== "";
+    searchFromUrl.trim() !== "" || statusFilter !== "all" || projectFilter.trim() !== "" || teamFilter.trim() !== "";
 
   const clearFilters = () => {
-    setSearchInput("");
     setStatusFilter("all");
     setProjectFilter("");
     setTeamFilter("");
@@ -210,7 +215,9 @@ export default function Decisions() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Decisions</h1>
           <p className="text-muted-foreground mt-1">
-            All extracted decisions across your meetings.
+            {searchFromUrl
+              ? <>Results for "<span className="text-foreground font-medium">{searchFromUrl}</span>"</>
+              : "All extracted decisions across your meetings."}
             {total > 0 && (
               <span className="ml-1">
                 {total} decision{total !== 1 ? "s" : ""} total
@@ -228,22 +235,7 @@ export default function Decisions() {
 
       {/* Filter Bar */}
       <Card className="bg-card/50 border-white/10">
-        <CardContent className="p-4 space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search decisions by title, description, project, or team..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 bg-black/20 border-white/10"
-            />
-          </div>
-
-          {/* Filters */}
+        <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
 
