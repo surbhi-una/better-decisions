@@ -8,15 +8,13 @@ import { auth } from "./auth";
 const app = express();
 const httpServer = createServer(app);
 
-// Add better-auth middleware
-app.all("/api/auth/*", (req, res) => auth.handler(req, res));
-
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
 
+// Parse body FIRST before auth middleware
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -26,6 +24,54 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Add better-auth middleware AFTER body parsing
+app.all("/api/auth/*", async (req, res) => {
+  console.log(`[AUTH] ${req.method} ${req.url}`);
+  console.log(`[AUTH] Body:`, JSON.stringify(req.body));
+  console.log(`[AUTH] Headers:`, req.headers['content-type']);
+  try {
+    // Construct full URL for better-auth
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const fullUrl = `${protocol}://${host}${req.url}`;
+    console.log(`[AUTH] Full URL: ${fullUrl}`);
+
+    // Create a new request object with the full URL
+    let bodyInit = undefined;
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+      bodyInit = JSON.stringify(req.body);
+      console.log(`[AUTH] Sending body:`, bodyInit);
+    }
+
+    const authReq = new Request(fullUrl, {
+      method: req.method,
+      headers: {
+        ...req.headers as HeadersInit,
+        'content-type': 'application/json',
+      },
+      body: bodyInit,
+    });
+
+    const authRes = await auth.handler(authReq);
+    console.log(`[AUTH] Response status: ${authRes.status}`);
+
+    // Convert better-auth Response to Express response
+    res.status(authRes.status);
+    authRes.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+
+    const body = await authRes.text();
+    if (authRes.status >= 400) {
+      console.log(`[AUTH] Error response:`, body);
+    }
+    res.send(body);
+  } catch (error: any) {
+    console.error('[AUTH] Handler error:', error.message);
+    res.status(500).json({ error: 'Authentication error' });
+  }
+});
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

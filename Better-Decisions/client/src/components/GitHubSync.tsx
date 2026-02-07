@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { authClient } from '@/lib/auth-client';
 import {
   Dialog,
   DialogContent,
@@ -65,9 +66,12 @@ export function GitHubSync({ projectId }: GitHubSyncProps) {
     }
   };
 
-  const connectGitHub = () => {
-    // Redirect to better-auth GitHub OAuth
-    window.location.href = '/api/auth/sign-in/github';
+  const connectGitHub = async () => {
+    // Use better-auth client for GitHub OAuth
+    await authClient.signIn.social({
+      provider: "github",
+      callbackURL: window.location.origin + "/",
+    });
   };
 
   const fetchRepos = async () => {
