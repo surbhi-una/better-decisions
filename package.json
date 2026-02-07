@@ -1,0 +1,23 @@
+{
+  "name": "better-decisions",
+  "version": "1.0.0",
+  "description": "Enterprise decision-tracking tool — extract decisions from meeting notes with Claude AI",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/index.js",
+    "migrate": "tsx --env-file=.env src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@hono/node-server": "^1.13.8",
+    "@neondatabase/serverless": "^0.10.4",
+    "hono": "^4.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
