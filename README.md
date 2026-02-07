@@ -1,1 +1,1 @@
-# better-auth
+# better-decisions
