@@ -2,18 +2,20 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
-import { 
-  LayoutDashboard, 
-  Network, 
-  Settings2, 
-  Cpu, 
-  Search, 
-  Bell, 
+import {
+  LayoutDashboard,
+  Network,
+  Settings2,
+  Cpu,
+  Search,
+  Bell,
   Menu,
   X,
   FolderKanban,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Target,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +23,9 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ChatAssistant } from "@/components/ChatAssistant";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
 
   const [projectsOpen, setProjectsOpen] = React.useState(true);
 
@@ -37,6 +40,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }));
 
   const navItems = [
+    { href: "/decisions", label: "Decisions", icon: Target },
+    { href: "/meetings/new", label: "Submit Meeting", icon: MessageSquare },
     { href: "/dashboard", label: "Analytics", icon: LayoutDashboard },
     { href: "/mcp", label: "MCP Configuration", icon: Cpu },
     { href: "/settings", label: "Settings", icon: Settings2 },
@@ -167,13 +172,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-semibold">Better-Decisions</span>
           </div>
 
-          <div className="hidden lg:flex items-center w-full max-w-md gap-2 text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-md border border-transparent focus-within:border-primary/20 focus-within:bg-secondary transition-colors">
-            <Search className="w-4 h-4" />
-            <Input 
-              placeholder="Search meetings, decisions, or code contexts..." 
+          <form
+            className="hidden lg:flex items-center w-full max-w-md gap-2 text-muted-foreground bg-secondary/50 px-3 py-1.5 rounded-md border border-transparent focus-within:border-primary/20 focus-within:bg-secondary transition-colors"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchValue.trim()) {
+                setLocation(`/decisions?search=${encodeURIComponent(searchValue.trim())}`);
+              }
+            }}
+          >
+            <Search className="w-4 h-4 shrink-0" />
+            <Input
+              placeholder="Search meetings, decisions, or code contexts..."
               className="border-0 bg-transparent h-auto p-0 placeholder:text-muted-foreground/70 focus-visible:ring-0"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
             />
-          </div>
+          </form>
 
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative">

@@ -34,6 +34,40 @@ app.post("/", async (c) => {
     );
   }
 
+  // Collect unique project names from extracted decisions and auto-create projects
+  const projectNames = [
+    ...new Set(
+      extracted.map((d) => d.project).filter((p): p is string => !!p)
+    ),
+  ];
+  const createdProjects: string[] = [];
+
+  for (const projectName of projectNames) {
+    const projectId = projectName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    // Only create if it doesn't already exist
+    const existing = await sql(
+      `SELECT id FROM projects WHERE id = $1`,
+      [projectId]
+    );
+    if (existing.length === 0) {
+      await sql(
+        `INSERT INTO projects (id, name, description, status, progress, team, color, tags)
+         VALUES ($1, $2, $3, 'active', 0, '{}', $4, '{}')`,
+        [
+          projectId,
+          projectName,
+          `Auto-created from meeting: ${title}`,
+          `hsl(${Math.floor(Math.random() * 360)}, 70%, 55%)`,
+        ]
+      );
+      createdProjects.push(projectName);
+    }
+  }
+
   // Insert decisions and participants
   const decisions = [];
   for (const d of extracted) {
@@ -65,7 +99,7 @@ app.post("/", async (c) => {
     decisions.push({ ...decision, participants: d.participants ?? [] });
   }
 
-  return c.json({ meeting, decisions }, 201);
+  return c.json({ meeting, decisions, createdProjects }, 201);
 });
 
 export default app;

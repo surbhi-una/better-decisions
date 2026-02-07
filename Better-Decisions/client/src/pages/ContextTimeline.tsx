@@ -286,10 +286,11 @@ export default function ContextTimeline() {
         onClose={() => setSelectedNode(null)} 
       />
 
-      <AgentModal 
-        isOpen={isAgentOpen} 
-        onClose={() => setIsAgentOpen(false)} 
-        mode="log-event" 
+      <AgentModal
+        isOpen={isAgentOpen}
+        onClose={() => setIsAgentOpen(false)}
+        mode="log-event"
+        projectId={projectId ?? undefined}
       />
     </div>
   );
