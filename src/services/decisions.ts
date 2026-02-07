@@ -2,6 +2,7 @@ import { sql } from "../db/client.js";
 import type { Decision, DecisionDetail, PaginatedResponse } from "../types/index.js";
 
 interface ListFilters {
+  search?: string;
   project?: string;
   team?: string;
   status?: string;
@@ -22,13 +23,21 @@ export async function listDecisions(
   const params: unknown[] = [];
   let paramIndex = 1;
 
+  if (filters.search) {
+    const pattern = `%${filters.search}%`;
+    conditions.push(
+      `(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR project ILIKE $${paramIndex} OR team ILIKE $${paramIndex})`
+    );
+    params.push(pattern);
+    paramIndex++;
+  }
   if (filters.project) {
-    conditions.push(`project = $${paramIndex++}`);
-    params.push(filters.project);
+    conditions.push(`project ILIKE $${paramIndex++}`);
+    params.push(`%${filters.project}%`);
   }
   if (filters.team) {
-    conditions.push(`team = $${paramIndex++}`);
-    params.push(filters.team);
+    conditions.push(`team ILIKE $${paramIndex++}`);
+    params.push(`%${filters.team}%`);
   }
   if (filters.status) {
     conditions.push(`status = $${paramIndex++}`);

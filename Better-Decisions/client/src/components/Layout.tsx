@@ -2,18 +2,20 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
-import { 
-  LayoutDashboard, 
-  Network, 
-  Settings2, 
-  Cpu, 
-  Search, 
-  Bell, 
+import {
+  LayoutDashboard,
+  Network,
+  Settings2,
+  Cpu,
+  Search,
+  Bell,
   Menu,
   X,
   FolderKanban,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Target,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }));
 
   const navItems = [
+    { href: "/decisions", label: "Decisions", icon: Target },
+    { href: "/meetings/new", label: "Submit Meeting", icon: MessageSquare },
     { href: "/dashboard", label: "Analytics", icon: LayoutDashboard },
     { href: "/mcp", label: "MCP Configuration", icon: Cpu },
     { href: "/settings", label: "Settings", icon: Settings2 },

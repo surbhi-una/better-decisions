@@ -11,7 +11,7 @@ For each decision, return a JSON object with:
 - rationale: Why this decision was made (if mentioned)
 - status: One of "decided", "proposed", "revisiting", "superseded"
 - confidence: Your confidence the notes clearly support this decision — "high", "medium", or "low"
-- project: The project name if mentioned (null otherwise)
+- project: IMPORTANT — always assign a project name. If a specific project is mentioned, use that name. Otherwise, infer a short project name (2-4 words, kebab-case like "infra-migration" or "mobile-app-v2") from the topic or domain of the decision. Never leave this null.
 - team: The team name if mentioned (null otherwise)
 - participants: Array of {name, role} where role is one of "decider", "approver", "contributor", "informed", "participant"
 
