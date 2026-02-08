@@ -7,6 +7,8 @@ import {
   events, account
 } from "@shared/schema";
 import { fetchAndTransformPRs, getAuthenticatedUserRepos } from "./github";
+import { sentryService } from "./services/sentryService";
+import { enhanceSentryEventWithAI } from "./ai-enhancer";
 import { auth } from "./auth";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
@@ -325,6 +327,146 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error('Error syncing GitHub PRs:', error);
       res.status(500).json({ error: error.message || 'Failed to sync PRs' });
+    }
+  });
+
+  // --- Sentry Integration ---
+
+  // DELETE /api/sentry/events - Clean up all Sentry events from database
+  app.delete("/api/sentry/events", async (req, res) => {
+    try {
+      const { sql } = await import('drizzle-orm');
+      const result = await db
+        .delete(events)
+        .where(sql`${events.id} LIKE 'sentry-%'`)
+        .returning();
+      
+      res.json({
+        deleted: result.length,
+        message: `Deleted ${result.length} Sentry event(s)`,
+      });
+    } catch (error: any) {
+      console.error('Error deleting Sentry events:', error);
+      res.status(500).json({ error: error.message || 'Failed to delete Sentry events' });
+    }
+  });
+
+  // POST /api/sentry/sync - Sync top errors from Sentry to project
+  app.post("/api/sentry/sync", async (req, res) => {
+    try {
+      const { projectId } = req.body;
+
+      if (!projectId) {
+        return res.status(400).json({
+          error: 'projectId is required'
+        });
+      }
+
+      // Verify project exists
+      const project = await storage.getProject(projectId);
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+
+      // Fetch top 5 errors from last 7 days
+      const errors = await sentryService.fetchTopErrors(7, 5);
+
+      // Enhance all errors in parallel for speed
+      const enhancementPromises = errors.map(error =>
+        enhanceSentryEventWithAI({
+          title: error.title,
+          culprit: error.culprit,
+          count: error.count,
+          userCount: error.userCount,
+          level: error.level,
+          firstSeen: error.firstSeen,
+          lastSeen: error.lastSeen,
+        }).catch(err => {
+          console.error(`Failed to enhance error ${error.id}:`, err);
+          // Return basic fallback
+          return {
+            description: error.title,
+            summary: `${error.count} occurrences in ${error.culprit}`,
+            impact: 'medium' as const,
+            isDecision: false,
+            actionItems: ['Investigate error logs'],
+            keyTakeaways: [`${error.count} events`],
+          };
+        })
+      );
+
+      const enhancements = await Promise.all(enhancementPromises);
+
+      let totalSynced = 0;
+
+      // Create events with proper sortOrder based on firstSeen timestamp
+      for (let i = 0; i < errors.length; i++) {
+        const error = errors[i];
+        const aiEnhancement = enhancements[i];
+
+        try {
+          // Format timestamp using firstSeen for chronological ordering
+          const firstSeenDate = new Date(error.firstSeen);
+          const timestamp = firstSeenDate.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+
+          // Use sortOrder 0 to match existing events pattern
+          const sortOrder = 0;
+
+          // Create event ID
+          const eventId = `sentry-${error.id}`;
+
+          // Check if error already exists
+          const existing = await db
+            .select()
+            .from(events)
+            .where(eq(events.id, eventId))
+            .limit(1);
+
+          if (existing.length === 0) {
+            await db.insert(events).values({
+              id: eventId,
+              projectId,
+              type: 'note',
+              isDecision: aiEnhancement.isDecision,
+              label: error.title,
+              description: aiEnhancement.description,
+              timestamp,
+              status: 'active',
+              impact: aiEnhancement.impact,
+              summary: aiEnhancement.summary,
+              participants: [],
+              actionItems: aiEnhancement.actionItems.map(item => ({
+                text: item,
+                completed: false,
+              })),
+              openQuestions: aiEnhancement.keyTakeaways,
+              relatedLinks: [
+                { label: 'View in Sentry', url: error.permalink },
+              ],
+              tags: ['logs', 'sentry', 'error', error.level, `${error.count}-events`],
+              sortOrder,
+            });
+            totalSynced++;
+          }
+        } catch (insertError: any) {
+          console.error(`Failed to insert error ${error.id}:`, insertError);
+        }
+      }
+
+      res.json({
+        synced: totalSynced,
+        total: errors.length,
+        message: `Successfully synced ${totalSynced} Sentry errors`,
+      });
+    } catch (error: any) {
+      console.error('Error syncing Sentry errors:', error);
+      res.status(500).json({ error: error.message || 'Failed to sync Sentry errors' });
     }
   });
 
