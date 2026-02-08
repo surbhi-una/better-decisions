@@ -67,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setProjectsOpen(!projectsOpen)}
             className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-              location === "/" || location.startsWith("/stream")
+              location === "/" || location.startsWith("/stream") || location.startsWith("/projects/")
                 ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
             }`}
@@ -97,9 +97,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </a>
               </Link>
               {activeProjects.map((project) => {
-                const isActive = location === `/stream?project=${project.id}`;
+                const isActive = location === `/projects/${project.id}`;
                 return (
-                  <Link key={project.id} href={`/stream?project=${project.id}`}>
+                  <Link key={project.id} href={`/projects/${project.id}`}>
                     <a
                       className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
                         isActive

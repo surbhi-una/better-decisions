@@ -11,12 +11,14 @@ import MCPConfig from "@/pages/MCPConfig";
 import Projects from "@/pages/Projects";
 import MeetingNotesSubmit from "@/pages/MeetingNotesSubmit";
 import Decisions from "@/pages/Decisions";
+import ProjectDetail from "@/pages/ProjectDetail";
 
 function Router() {
   return (
     <Layout>
       <Switch>
         <Route path="/" component={Projects} />
+        <Route path="/projects/:id" component={ProjectDetail} />
         <Route path="/stream" component={ContextTimeline} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/meetings/new" component={MeetingNotesSubmit} />

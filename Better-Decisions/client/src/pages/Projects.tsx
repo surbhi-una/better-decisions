@@ -139,7 +139,7 @@ export default function Projects() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Link href={`/stream?project=${project.id}`}>
+              <Link href={`/projects/${project.id}`}>
                 <Card 
                   className="p-5 bg-card/50 border-white/10 hover:border-primary/30 transition-all cursor-pointer group h-full"
                   data-testid={`card-project-${project.id}`}
@@ -211,7 +211,7 @@ export default function Projects() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.03 }}
             >
-              <Link href={`/stream?project=${project.id}`}>
+              <Link href={`/projects/${project.id}`}>
                 <Card 
                   className="p-4 bg-card/50 border-white/10 hover:border-primary/30 transition-all cursor-pointer group"
                   data-testid={`row-project-${project.id}`}
