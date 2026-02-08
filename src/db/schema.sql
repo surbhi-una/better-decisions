@@ -44,6 +44,15 @@ CREATE TABLE IF NOT EXISTS github_links (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- MCP connections: track which tools are connected
+CREATE TABLE IF NOT EXISTS mcp_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tool_id TEXT NOT NULL UNIQUE,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  config JSONB DEFAULT '{}',
+  connected_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_decisions_project ON decisions(project);
 CREATE INDEX IF NOT EXISTS idx_decisions_team ON decisions(team);

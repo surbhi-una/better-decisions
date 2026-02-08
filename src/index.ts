@@ -10,6 +10,8 @@ import projectsRouter from "./routes/projects.js";
 import eventsRouter from "./routes/events.js";
 import activitiesRouter from "./routes/activities.js";
 import statsRouter from "./routes/stats.js";
+import mcpRouter from "./routes/mcp.js";
+import { shutdownAll } from "./services/mcp-manager.js";
 
 const app = new Hono();
 
@@ -32,6 +34,7 @@ app.route("/api/projects", projectsRouter);
 app.route("/api/events", eventsRouter);
 app.route("/api/activities", activitiesRouter);
 app.route("/api/stats", statsRouter);
+app.route("/api/mcp", mcpRouter);
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
 
@@ -39,3 +42,12 @@ console.log(`Starting server on port ${port}...`);
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Server running at http://localhost:${info.port}`);
 });
+
+// Graceful shutdown — close all MCP connections
+const shutdown = async () => {
+  console.log("\nShutting down...");
+  await shutdownAll();
+  process.exit(0);
+};
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
