@@ -1,7 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertEventSchema, insertActivitySchema, events, account } from "@shared/schema";
+import {
+  insertProjectSchema, insertEventSchema, insertActivitySchema,
+  insertMeetingSchema, insertDecisionSchema, insertDecisionParticipantSchema, insertGithubLinkSchema,
+  events, account
+} from "@shared/schema";
 import { fetchAndTransformPRs, getAuthenticatedUserRepos } from "./github";
 import { auth } from "./auth";
 import { db } from "./db";
@@ -98,18 +102,114 @@ export async function registerRoutes(
     res.status(201).json(activity);
   });
 
+  // --- Meetings ---
+  app.get("/api/meetings", async (_req, res) => {
+    const meetingsList = await storage.getMeetings();
+    res.json(meetingsList);
+  });
+
+  app.get("/api/meetings/:id", async (req, res) => {
+    const meeting = await storage.getMeeting(req.params.id);
+    if (!meeting) return res.status(404).json({ message: "Meeting not found" });
+
+    // Include decisions extracted from this meeting
+    const meetingDecisions = await storage.getDecisionsByMeeting(meeting.id);
+
+    // For each decision, include participants
+    const decisionsWithParticipants = await Promise.all(
+      meetingDecisions.map(async (d) => {
+        const participants = await storage.getParticipantsByDecision(d.id);
+        return { ...d, participants };
+      })
+    );
+
+    res.json({ ...meeting, decisions: decisionsWithParticipants });
+  });
+
+  app.post("/api/meetings", async (req, res) => {
+    const parsed = insertMeetingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.message });
+    }
+    const meeting = await storage.createMeeting(parsed.data);
+    res.status(201).json(meeting);
+  });
+
+  // --- Decisions ---
+  app.get("/api/decisions", async (req, res) => {
+    const { status, project, team, page, pageSize } = req.query;
+    const result = await storage.getDecisions({
+      status: status as string | undefined,
+      project: project as string | undefined,
+      team: team as string | undefined,
+      page: page ? parseInt(page as string, 10) : undefined,
+      pageSize: pageSize ? parseInt(pageSize as string, 10) : undefined,
+    });
+    res.json(result);
+  });
+
+  app.get("/api/decisions/:id", async (req, res) => {
+    const decision = await storage.getDecision(req.params.id);
+    if (!decision) return res.status(404).json({ message: "Decision not found" });
+
+    const [participants, githubLinksList, meeting] = await Promise.all([
+      storage.getParticipantsByDecision(decision.id),
+      storage.getGithubLinksByDecision(decision.id),
+      storage.getMeeting(decision.meetingId),
+    ]);
+
+    res.json({ ...decision, participants, githubLinks: githubLinksList, meeting });
+  });
+
+  app.post("/api/decisions", async (req, res) => {
+    const parsed = insertDecisionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.message });
+    }
+    const decision = await storage.createDecision(parsed.data);
+    res.status(201).json(decision);
+  });
+
+  app.patch("/api/decisions/:id", async (req, res) => {
+    const updated = await storage.updateDecision(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ message: "Decision not found" });
+    res.json(updated);
+  });
+
+  // --- Decision Participants ---
+  app.post("/api/decisions/:id/participants", async (req, res) => {
+    const body = { ...req.body, decisionId: req.params.id };
+    const parsed = insertDecisionParticipantSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.message });
+    }
+    const participant = await storage.createParticipant(parsed.data);
+    res.status(201).json(participant);
+  });
+
+  // --- GitHub Links ---
+  app.post("/api/decisions/:id/github-links", async (req, res) => {
+    const body = { ...req.body, decisionId: req.params.id };
+    const parsed = insertGithubLinkSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.message });
+    }
+    const link = await storage.createGithubLink(parsed.data);
+    res.status(201).json(link);
+  });
+
   // --- Stats ---
   app.get("/api/stats", async (_req, res) => {
     const allProjects = await storage.getProjects();
     const allEvents = await storage.getEvents();
+    const allMeetings = await storage.getMeetings();
+    const decisionsResult = await storage.getDecisions({ pageSize: 1 });
     const activeProjects = allProjects.filter(p => p.status === "active").length;
-    const totalDecisions = allEvents.filter(e => e.isDecision).length;
-    const totalMeetings = allEvents.filter(e => e.type === "meeting").length;
     res.json({
       activeProjects,
       totalProjects: allProjects.length,
-      totalDecisions,
-      totalMeetings,
+      totalDecisions: decisionsResult.total,
+      totalMeetings: allMeetings.length,
       totalEvents: allEvents.length,
     });
   });

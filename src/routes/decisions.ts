@@ -6,6 +6,7 @@ const app = new Hono();
 // GET /api/decisions — list with filters + pagination
 app.get("/", async (c) => {
   const filters = {
+    search: c.req.query("search"),
     project: c.req.query("project"),
     team: c.req.query("team"),
     status: c.req.query("status"),

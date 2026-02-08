@@ -9,6 +9,8 @@ import Dashboard from "@/pages/Dashboard";
 import ContextTimeline from "@/pages/ContextTimeline";
 import MCPConfig from "@/pages/MCPConfig";
 import Projects from "@/pages/Projects";
+import MeetingNotesSubmit from "@/pages/MeetingNotesSubmit";
+import Decisions from "@/pages/Decisions";
 
 function Router() {
   return (
@@ -17,6 +19,8 @@ function Router() {
         <Route path="/" component={Projects} />
         <Route path="/stream" component={ContextTimeline} />
         <Route path="/dashboard" component={Dashboard} />
+        <Route path="/meetings/new" component={MeetingNotesSubmit} />
+        <Route path="/decisions" component={Decisions} />
         <Route path="/mcp" component={MCPConfig} />
         <Route component={NotFound} />
       </Switch>
