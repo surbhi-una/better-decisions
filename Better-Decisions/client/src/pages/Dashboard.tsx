@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { Activity } from "@shared/schema";
-import { ArrowUpRight, MessageSquare, GitMerge, Activity as ActivityIcon, Clock } from "lucide-react";
+import { ArrowUpRight, MessageSquare, GitMerge, Activity as ActivityIcon, Clock, Download } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const chartData = [
   { day: "Mon", context: 120, decisions: 45 },
@@ -30,6 +32,81 @@ export default function Dashboard() {
     queryKey: ["/api/activities"],
   });
 
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    const now = new Date();
+
+    // Title
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Better Decisions — Dashboard Report", 14, 22);
+
+    // Date
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Generated ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 30);
+
+    // Divider
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 34, 196, 34);
+
+    // Stats summary
+    doc.setFontSize(14);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Summary", 14, 44);
+
+    autoTable(doc, {
+      startY: 48,
+      head: [["Metric", "Value"]],
+      body: [
+        ["Active Contexts", stats?.totalEvents?.toLocaleString() ?? "N/A"],
+        ["Decisions Logged", stats?.totalDecisions?.toString() ?? "N/A"],
+        ["Meetings Processed", stats?.totalMeetings?.toString() ?? "N/A"],
+        ["Avg. Time to Code", "4.2h"],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 11, cellPadding: 5 },
+      alternateRowStyles: { fillColor: [245, 245, 250] },
+    });
+
+    // Context Velocity chart data table
+    const tableEndY = (doc as any).lastAutoTable?.finalY ?? 90;
+    doc.setFontSize(14);
+    doc.setTextColor(40, 40, 40);
+    doc.text("Context Velocity (Weekly)", 14, tableEndY + 14);
+
+    autoTable(doc, {
+      startY: tableEndY + 18,
+      head: [["Day", "Context Tokens", "Decisions"]],
+      body: chartData.map((d) => [d.day, d.context.toString(), d.decisions.toString()]),
+      theme: "grid",
+      headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 10, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [245, 245, 250] },
+    });
+
+    // Recent Activity
+    if (activityList.length > 0) {
+      const chartTableEndY = (doc as any).lastAutoTable?.finalY ?? 150;
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text("Recent Activity", 14, chartTableEndY + 14);
+
+      autoTable(doc, {
+        startY: chartTableEndY + 18,
+        head: [["User", "Action", "Target", "Time"]],
+        body: activityList.map((a) => [a.user, a.action, a.target, a.time]),
+        theme: "grid",
+        headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+        styles: { fontSize: 10, cellPadding: 4 },
+        alternateRowStyles: { fillColor: [245, 245, 250] },
+      });
+    }
+
+    doc.save(`dashboard-report-${now.toISOString().slice(0, 10)}.pdf`);
+  };
+
   const statCards = [
     { label: "Active Contexts", value: stats?.totalEvents?.toLocaleString() ?? "...", change: "+12.5%", icon: ActivityIcon },
     { label: "Decisions Logged", value: stats?.totalDecisions?.toString() ?? "...", change: "+4.2%", icon: GitMerge },
@@ -47,7 +124,10 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" data-testid="button-export">Export Report</Button>
+          <Button variant="outline" data-testid="button-export" onClick={exportPDF}>
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20" data-testid="button-new-analysis">
             New Analysis
           </Button>
