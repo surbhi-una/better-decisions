@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
   insertProjectSchema, insertEventSchema, insertActivitySchema,
-  insertMeetingSchema, insertDecisionSchema, insertDecisionParticipantSchema, insertGithubLinkSchema, events, account
+  insertMeetingSchema, insertDecisionSchema, insertDecisionParticipantSchema, insertGithubLinkSchema,
+  events, account
 } from "@shared/schema";
 import { fetchAndTransformPRs, getAuthenticatedUserRepos } from "./github";
 import { auth } from "./auth";
