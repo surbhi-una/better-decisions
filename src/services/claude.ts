@@ -11,7 +11,7 @@ For each decision, return a JSON object with:
 - rationale: Why this decision was made (if mentioned)
 - status: One of "decided", "proposed", "revisiting", "superseded"
 - confidence: Your confidence the notes clearly support this decision — "high", "medium", or "low"
-- project: IMPORTANT — always assign a project name. If a specific project is mentioned, use that name. Otherwise, infer a short project name (2-4 words, kebab-case like "infra-migration" or "mobile-app-v2") from the topic or domain of the decision. Never leave this null.
+- project: IMPORTANT — always assign a project name in human-readable form (e.g. "Mobile Auth", "Payment Gateway", "Dashboard Redesign"). If a specific project is mentioned, use that name. Otherwise, infer a short descriptive name (2-4 words) from the topic. Never leave this null.
 - team: The team name if mentioned (null otherwise)
 - participants: Array of {name, role} where role is one of "decider", "approver", "contributor", "informed", "participant"
 
@@ -33,8 +33,14 @@ export async function extractDecisions(
     ],
   });
 
-  const text =
+  let text =
     response.content[0].type === "text" ? response.content[0].text : "";
+
+  // Strip markdown code fences if present
+  text = text.trim();
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
 
   try {
     const decisions = JSON.parse(text);
