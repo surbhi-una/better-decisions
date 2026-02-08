@@ -370,6 +370,29 @@ Configure **MCP** (`/mcp`):
 
 ---
 
+## Sponsors & Credits
+
+This project was built as part of a hackathon and made possible by generous credits from our sponsors:
+
+<div align="center">
+
+### 🙏 Thank You to Our Sponsors
+
+| Sponsor | What We Used | Impact |
+|---------|--------------|--------|
+| [**Vercel**](https://vercel.com) | Deployment & Hosting | Lightning-fast global edge network |
+| [**Neon**](https://neon.tech) | Serverless PostgreSQL | Auto-scaling database with branching |
+| [**Anthropic**](https://anthropic.com) | Claude AI API | Intelligent decision extraction |
+| [**Sentry**](https://sentry.io) | Error Monitoring | Production stability and debugging |
+| [**CodeRabbit**](https://coderabbit.ai) | AI Code Reviews | Code quality and best practices |
+| [**Replit**](https://replit.com) | Development Environment | Collaborative coding platform |
+
+</div>
+
+**Special thanks** to the hackathon organizers and sponsors for providing the resources that made this project possible. Your support for builders and innovators makes a real difference! 🚀
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:
