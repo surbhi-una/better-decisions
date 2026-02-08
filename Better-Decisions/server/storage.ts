@@ -55,7 +55,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEventsByProject(projectId: string): Promise<Event[]> {
-    return db.select().from(events).where(eq(events.projectId, projectId)).orderBy(asc(events.sortOrder));
+    const results = await db.select().from(events).where(eq(events.projectId, projectId));
+    
+    // Sort by parsing timestamp strings chronologically
+    return results.sort((a, b) => {
+      const dateA = new Date(a.timestamp);
+      const dateB = new Date(b.timestamp);
+      return dateA.getTime() - dateB.getTime();
+    });
   }
 
   async getEvent(id: string): Promise<Event | undefined> {
